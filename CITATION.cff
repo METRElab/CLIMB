@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use CLIMB in your research, please cite it using the metadata below."
+type: software
+title: "CLIMB: Cerebellar Learning and Interchangeable Models' Benchmark"
+abstract: >-
+  CLIMB tests granule-layer models inside a fixed reference cerebellar
+  circuit on eyeblink conditioning (delay and trace), built in Nengo.
+  Users fill in their own granule layer as a GranuleLayer subclass, and a
+  live browser panel lets two models learn side by side on identical input.
+authors:
+  - given-names: "Sahir"
+    family-names: "Dhalla"
+    affiliation: "Neuroscience Graduate Program, McMaster University, Hamilton, ON, Canada"
+    orcid: "https://orcid.org/0000-0002-0459-8850"
+  - given-names: "Jonathan"
+    family-names: "Cannon"
+    affiliation: "Department of Psychology, Neuroscience, and Behaviour, McMaster University, Hamilton, ON, Canada"
+    orcid: "https://orcid.org/0000-0001-7561-6529"
+version: 0.2.0
+date-released: 2026-11-22
+license: MIT
+repository-code: "https://github.com/METRElab/CLIMB"
+keywords:
+  - cerebellum
+  - eyeblink conditioning
+  - granule layer
+  - computational neuroscience
+  - Nengo

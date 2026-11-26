@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cerebellar testing platform · eyeblink</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f4f2ee; --card: #ffffff; --ink: #1f2328; --muted: #6b7078; --line: #dcd8d0;
+    --accent: #2f6db5; --a: #c8553d; --b: #2f6db5; --lamp: #ffcf3f; --warn: #a15c00;
+    --lid: #d9b38c; --ok: #3c9d5d; --err: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header { padding: 18px 28px 8px; display: flex; align-items: baseline; gap: 14px; }
+  header h1 { font-size: 20px; margin: 0; font-weight: 650; }
+  header .sub { color: var(--muted); }
+  main { padding: 8px 28px 40px; display: grid; gap: 18px; max-width: 1180px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .controls { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px 18px; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field > label, .field > .label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  select, button { font: inherit; }
+  select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .seg { display: inline-flex; align-self: flex-start; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; padding: 7px 16px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--ink); color: #fff; }
+  .col-a { grid-column: span 3; } .col-b { grid-column: span 3; } .col-p { grid-column: span 3; }
+  .col-btn { grid-column: span 3; display: flex; gap: 10px; justify-content: flex-end; }
+  .col-isi { grid-column: span 7; padding-right: 18px; } .col-speed { grid-column: span 5; }
+  .btn { border: 0; border-radius: 8px; padding: 9px 20px; cursor: pointer; font-weight: 600; }
+  .btn.run { background: var(--ink); color: #fff; }
+  .btn.stop { background: #fff; border: 1px solid var(--line); }
+  #pause { min-width: 92px; }
+  #pause.paused { background: #fff4d6; border-color: #e0b84a; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  .slider-row output { min-width: 80px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border-radius: 5px;
+                      background: #ddd; outline: none; margin: 8px 0; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+                      background: #fff; border: 2px solid var(--ink); cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff;
+                      border: 2px solid var(--ink); cursor: pointer; }
+  input[type=range]:disabled { opacity: .5; }
+  .ticks { position: relative; height: 16px; font-size: 11px; color: var(--muted); margin: -4px 92px 0 9px; }
+  .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+  .ticks span.first { transform: translateX(-9px); }
+  .ticks span.last { transform: translateX(calc(-100% + 9px)); }
+  .hint { font-size: 12px; color: var(--muted); }
+  .hint.warn { color: var(--warn); }
+  .status { grid-column: span 12; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .status.err { color: var(--err); }
+  .input-card { padding: 12px 18px 14px; }
+  .input-card .tl-head { display: flex; align-items: center; gap: 28px; margin-bottom: 8px; }
+  .input-card .label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .input-card .desc { font-weight: 600; }
+  .input-card .trial-info { margin-left: auto; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .input-card .trial-info b { color: var(--ink); }
+  .input-card canvas { display: block; width: 100%; }
+  #overview { cursor: crosshair; touch-action: none; }
+  .tl-bar { display: flex; align-items: center; gap: 12px; margin: 6px 0 10px; }
+  .tl-bar .hint { flex: 1; }
+  #follow[hidden] { display: none; }
+  .tl-live { font-size: 12px; color: var(--ok); font-weight: 600; }
+  .tl-width { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .tl-width input[type=range] { width: 130px; margin: 0; height: 6px; }
+  .tl-width output { min-width: 40px; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+  .eyes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+  .eye-card h2 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .eye-row { display: flex; align-items: center; gap: 18px; }
+  .eye-svg { width: 220px; height: 121px; flex: none; }
+  .lid { transform-box: fill-box; transform-origin: 50% 0%; transform: scaleY(0); }
+  .blinking .lid { animation: blink 200ms ease-out; }
+  @keyframes blink { 0% { transform: scaleY(0); } 35% { transform: scaleY(1); } 70% { transform: scaleY(1); } 100% { transform: scaleY(0); } }
+  .lamps { display: flex; flex-direction: column; gap: 10px; }
+  .lamp { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .bulb { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #999; background: #eee; transition: background 60ms; }
+  .bulb.small { width: 16px; height: 16px; border-width: 1.5px; }
+  .bulb.on { background: var(--lamp); border-color: #b48a00; box-shadow: 0 0 14px var(--lamp); }
+  .bulb.cs.on { background: #8bb7e8; border-color: #3b6ea8; box-shadow: none; }
+  .bulb.us.on { background: #f08a7e; border-color: #b3261e; box-shadow: none; }
+  .meta { margin-top: 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .plot-card h2 { margin: 0; font-size: 16px; }
+  .plot-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .btn.save { background: #fff; border: 1px solid var(--line); padding: 6px 14px; font-size: 14px; }
+  .plot-card .hint { margin-bottom: 10px; }
+  .plot-wrap { min-height: 220px; display: flex; align-items: center; justify-content: center;
+               border: 1px dashed var(--line); border-radius: 8px; }
+  .plot-wrap img { max-width: 100%; display: block; }
+  .plot-wrap.has-img { border: 0; }
+  .done { font-size: 13px; }
+  .done code { background: #f1efea; padding: 1px 5px; border-radius: 4px; }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cerebellar testing platform</h1>
+  <span class="sub">Eyeblink conditioning · <span id="version"></span></span>
+</header>
+<main>
+  <section class="card controls" id="controls">
+    <div class="field col-a"><label for="modelA">Model A</label><select id="modelA"></select></div>
+    <div class="field col-b"><label for="modelB">Model B</label><select id="modelB"></select></div>
+    <div class="field col-p"><span class="label">Input</span><div class="seg" id="protocol"></div></div>
+    <div class="col-btn">
+      <button class="btn stop" id="stop" disabled>Stop</button>
+      <button class="btn stop" id="pause" disabled>Pause</button>
+      <button class="btn run" id="run">Run</button>
+    </div>
+
+    <div class="field col-isi" id="isiField">
+      <label for="isi">CS–US interval (ISI)</label>
+      <div class="slider-row"><input type="range" id="isi"><output id="isiOut"></output></div>
+      <div class="ticks" id="isiTicks"></div>
+      <div class="hint" id="isiHint"></div>
+    </div>
+    <div class="field col-speed">
+      <label for="speed">Simulation speed</label>
+      <div class="slider-row"><input type="range" id="speed" min="0" max="100" step="1"><output id="speedOut"></output></div>
+      <div class="ticks"><span class="first" style="left:0%">Slowest</span><span style="left:45%">1×</span><span class="last" style="left:100%">Max</span></div>
+      <div class="hint">Slows a run down so you can watch it. Can't go faster than your computer can simulate.</div>
+    </div>
+    <div class="status" id="status">Loading…</div>
+  </section>
+
+  <section class="card input-card" id="inputCard" hidden>
+    <div class="tl-head">
+      <div><div class="label">Input to both models</div><div class="desc" id="inputDesc"></div></div>
+      <div class="trial-info" id="trialInfo">Waiting…</div>
+    </div>
+    <canvas id="overview" aria-label="the whole experiment: input and eyelid"></canvas>
+    <div class="tl-bar">
+      <span class="hint">Whole experiment. Drag the highlighted window, or click anywhere, to look at that moment below. Double-click to follow live again.</span>
+      <label class="tl-width">Window <input type="range" id="tlWidth" min="0.5" max="30" step="0.5"><output id="tlWidthOut"></output></label>
+      <span class="tl-live" id="liveTag">● Following live</span>
+      <button class="btn save" id="follow" hidden>Follow live</button>
+    </div>
+    <canvas id="detail" aria-label="highlighted window, zoomed in"></canvas>
+  </section>
+
+  <section class="eyes" id="eyes"><div class="card empty">Choose models and press Run.</div></section>
+
+  <section class="card plot-card">
+    <div class="plot-head">
+      <h2>Learning</h2>
+      <button class="btn save" id="savePlot" disabled title="Download the learning plot as a PNG">Save simulation</button>
+    </div>
+    <div class="hint" id="plotHint">The plot appears after the first 10 trials and updates every 10 trials.</div>
+    <div class="plot-wrap" id="plotWrap"><span class="hint">No data yet</span></div>
+  </section>
+</main>
+
+<template id="eyeTpl">
+  <div class="card eye-card">
+    <h2><span class="swatch"></span><span class="title"></span></h2>
+    <div class="eye-row">
+      <svg class="eye-svg" viewBox="0 0 200 110" aria-label="eye">
+        <defs><clipPath class="clip"><path d="M8,55 Q100,-8 192,55 Q100,118 8,55 Z"/></clipPath></defs>
+        <g class="eyeball">
+          <path d="M8,55 Q100,-8 192,55 Q100,118 8,55 Z" fill="#fff"/>
+          <circle cx="100" cy="55" r="25" fill="#4a2a17"/>
+          <circle cx="100" cy="55" r="11" fill="#151515"/>
+          <circle cx="107" cy="48" r="4" fill="#fff" opacity=".8"/>
+          <rect class="lid" x="0" y="0" width="200" height="110" fill="var(--lid)"/>
+        </g>
+        <path d="M8,55 Q100,-8 192,55 Q100,118 8,55 Z" fill="none" stroke="#333" stroke-width="2.5"/>
+      </svg>
+      <div class="lamps">
+        <div class="lamp"><span class="bulb blink-bulb"></span>Blink</div>
+      </div>
+    </div>
+    <div class="meta">Blinks <b class="count">0</b></div>
+    <div class="meta state"></div>
+  </div>
+</template>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const COLORS = { A: getComputedStyle(document.documentElement).getPropertyValue('--a'),
+                 B: getComputedStyle(document.documentElement).getPropertyValue('--b') };
+const FLASH_MS = 200;
+let cfg = null, protocol = 'delay', running = false, cards = {};
+let inputSource = null;        // the model whose events drive the shared input panel
+let paused = false, lastTrial = '';
+const timers = {};
+
+// ---------------------------------------------------------------- speed slider
+// positions 0..90 map to 0.1x..10x on a log scale; 91..100 means "max"
+function speedFromPos(pos) { pos = +pos; return pos > 90 ? null : Math.pow(10, -1 + 2 * pos / 90); }
+function posFromSpeed(s) { return s == null ? 100 : Math.round((Math.log10(s) + 1) * 45); }
+function speedLabel(s) { return s == null ? 'Max' : (s < 1 ? s.toFixed(2) : s.toFixed(1)) + '×'; }
+
+// ---------------------------------------------------------------- ISI slider
+function pct(v) { return 100 * (v - cfg.isi.min) / (cfg.isi.max - cfg.isi.min); }
+function drawIsiTrack() {
+  const [lo, hi] = cfg.isi.ideal.map(pct);
+  $('isi').style.background = `linear-gradient(to right, #e4e1db 0%, #e4e1db ${lo}%,
+      #3d6fa8 ${lo}%, #3d6fa8 ${hi}%, #e4e1db ${hi}%, #e4e1db 100%)`;
+  $('isiTicks').innerHTML = [cfg.isi.min, ...cfg.isi.ideal, cfg.isi.max]
+      .map(v => `<span style="left:${pct(v)}%">${v}</span>`).join('');
+}
+function updateIsi() {
+  const v = +$('isi').value, [lo, hi] = cfg.isi.ideal;
+  $('isiOut').textContent = v + ' ms';
+  const inside = v >= lo && v <= hi;
+  $('isiHint').textContent = inside ? `Inside the ideal range (${lo}–${hi} ms, dark band).`
+      : `Outside the ideal range (${lo}–${hi} ms, dark band): learning may be weak or mistimed.`;
+  $('isiHint').classList.toggle('warn', !inside);
+}
+
+function setProtocol(id) {
+  protocol = id;
+  const spec = cfg.protocols.find(p => p.id === id);
+  [...$('protocol').children].forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  $('isiField').style.visibility = 'visible';
+  $('isi').disabled = running || !spec.isi_settable;
+  if (!spec.isi_settable) {
+    $('isiOut').textContent = spec.isi_ms + ' ms';
+    $('isiHint').classList.remove('warn');
+    $('isiHint').textContent = `Fixed for ${spec.label.toLowerCase()} conditioning. ${spec.description}`;
+  } else { updateIsi(); }
+}
+
+function setRunning(r) {
+  running = r;
+  ['modelA', 'modelB', 'run'].forEach(id => $(id).disabled = r);
+  [...$('protocol').children].forEach(b => b.disabled = r);
+  $('stop').disabled = !r;
+  $('pause').disabled = !r;
+  if (!r) setPaused(false);
+  setProtocol(protocol);
+}
+
+function setPaused(p) {
+  paused = p;
+  $('pause').textContent = p ? 'Resume' : 'Pause';
+  $('pause').classList.toggle('paused', p);
+}
+
+function status(msg, err = false) { $('status').textContent = msg; $('status').classList.toggle('err', err); }
+
+// ---------------------------------------------------------------- setup
+async function init() {
+  cfg = await (await fetch('/api/config')).json();
+  $('version').textContent = 'v' + cfg.version;
+  const opts = cfg.models.map(m => `<option value="${m}">${m}</option>`).join('');
+  $('modelA').innerHTML = opts;
+  $('modelB').innerHTML = '<option value="">None (one model)</option>' + opts;
+  if (cfg.models.length > 1) $('modelB').value = cfg.models[1];
+  $('protocol').innerHTML = cfg.protocols.map(p => `<button data-id="${p.id}">${p.label}</button>`).join('');
+  [...$('protocol').children].forEach(b => b.onclick = () => setProtocol(b.dataset.id));
+  Object.assign($('isi'), { min: cfg.isi.min, max: cfg.isi.max, step: 10, value: cfg.isi.default });
+  $('isi').oninput = updateIsi;
+  drawIsiTrack();
+  $('speed').value = posFromSpeed(cfg.speed.default);
+  $('speedOut').textContent = speedLabel(cfg.speed.default);
+  let t = null;
+  $('speed').oninput = () => {
+    const s = speedFromPos($('speed').value);
+    $('speedOut').textContent = speedLabel(s);
+    clearTimeout(t); t = setTimeout(() => post('/api/speed', { speed: s }), 80);
+  };
+  $('run').onclick = run;
+  $('savePlot').onclick = () => {        // the server sends the file with its name
+    const a = document.createElement('a');
+    a.href = '/api/plot.png?t=' + Date.now(); a.download = '';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  $('stop').onclick = () => post('/api/stop', {});
+  $('pause').onclick = () => post(paused ? '/api/resume' : '/api/pause', {})
+      .catch(e => status(e.message, true));
+  setProtocol('delay');
+  const errs = Object.entries(cfg.model_errors);
+  if (!cfg.models.length) status('No models found in the models folder.', true);
+  else status(errs.length ? `Skipped ${errs.map(e => e[0]).join(', ')} (see terminal).` : 'Ready.', !!errs.length);
+  connect();
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+async function run() {
+  const spec = cfg.protocols.find(p => p.id === protocol);
+  try {
+    status('Starting…');
+    await post('/api/run', { model_a: $('modelA').value, model_b: $('modelB').value || null,
+                             protocol, isi_ms: spec.isi_settable ? +$('isi').value : null,
+                             speed: speedFromPos($('speed').value) });
+  } catch (e) { status(e.message, true); }
+}
+
+// ---------------------------------------------------------------- eyes
+function makeCards(models) {
+  $('eyes').innerHTML = ''; cards = {};
+  for (const m of models) {
+    const node = $('eyeTpl').content.firstElementChild.cloneNode(true);
+    const clipId = 'clip' + m.label;
+    node.querySelector('.clip').id = clipId;
+    node.querySelector('.eyeball').setAttribute('clip-path', `url(#${clipId})`);
+    node.querySelector('.title').textContent = `Model ${m.label} · ${m.name}`;
+    node.querySelector('.swatch').style.background = COLORS[m.label];
+    $('eyes').appendChild(node);
+    cards[m.label] = { label: m.label, node, svg: node.querySelector('.eye-svg'), bulb: node.querySelector('.blink-bulb'),
+                       count: node.querySelector('.count'), state: node.querySelector('.state'),
+                       blinks: 0, timers: {} };
+  }
+}
+function flash(el, key, cls = 'on') {
+  el.classList.add(cls);
+  clearTimeout(timers[key]);
+  timers[key] = setTimeout(() => el.classList.remove(cls), FLASH_MS);
+}
+// if the model feeding the input panel stops, switch to one that's still running
+function moveInputSource(fromLabel) {
+  if (inputSource !== fromLabel) return;
+  const next = Object.keys(cards).find(l => l !== fromLabel && !cards[l].ended);
+  if (next) inputSource = next;
+}
+function blink(card) {
+  card.svg.classList.remove('blinking'); void card.svg.getBoundingClientRect(); card.svg.classList.add('blinking');
+  flash(card.bulb, 'bulb' + card.label);
+  card.count.textContent = ++card.blinks;
+}
+
+// ---------------------------------------------------------------- events
+function connect() {
+  const es = new EventSource('/api/events');
+  es.onmessage = (msg) => handle(JSON.parse(msg.data));
+  es.onerror = () => status('Lost connection to the server; retrying…', true);
+  es.onopen = () => { if ($('status').classList.contains('err') && !running) status('Ready.'); };
+}
+
+function handle(ev) {
+  const card = cards[ev.model];
+  switch (ev.type) {
+    case 'session':
+      makeCards(ev.models); setRunning(true); setPaused(false); lastTrial = '';
+      inputSource = ev.models[0].label;
+      $('inputCard').hidden = false;
+      TL.reset(ev.models.map(m => m.label), ev.isi_ms ? ev.isi_ms / 1000 : 0.75);
+      $('trialInfo').textContent = 'Waiting…';
+      $('inputDesc').textContent = (ev.protocol === 'delay' ? 'Delay' : 'Trace') + ' conditioning' +
+        (ev.isi_ms ? `, ISI ${ev.isi_ms} ms` : '') + ` · seed ${ev.seed}`;
+      $('plotWrap').className = 'plot-wrap'; $('plotWrap').innerHTML = '<span class="hint">No data yet</span>';
+      $('savePlot').disabled = true;
+      $('plotHint').textContent = 'The plot appears after the first 10 trials and updates every 10 trials.';
+      $('speed').value = posFromSpeed(ev.speed > 0 ? ev.speed : null);
+      $('speedOut').textContent = speedLabel(ev.speed > 0 ? ev.speed : null);
+      status(`Running ${ev.protocol}${ev.isi_ms ? `, ISI ${ev.isi_ms} ms` : ''} · seed ${ev.seed}`);
+      break;
+    case 'status': if (card) card.state.textContent = ev.message; break;
+    case 'ready':
+      TL.setRun(ev.duration, ev.n_trials);
+      if (card) card.state.textContent = `built in ${ev.build_s} s` +
+        (Object.keys(ev.overrides || {}).length ? ` · overrides: ${Object.entries(ev.overrides)
+          .map(([k, v]) => `${k}=${v.used}`).join(', ')}` : '');
+      break;
+    case 'trial':
+      if (ev.model === inputSource) {
+        $('trialInfo').innerHTML = `Trial <b>${ev.index + 1}</b> / ${ev.n_trials} · ${ev.trial_type}`;
+        TL.trial(ev.t, ev.index + 1, ev.trial_type);
+        lastTrial = `${ev.index + 1} of ${ev.n_trials}`;
+      }
+      break;
+    case 'paused':
+      setPaused(true);
+      status(`Paused${lastTrial ? ` during trial ${lastTrial}` : ''}. Press Resume to carry on from the same moment.`);
+      break;
+    case 'resumed':
+      setPaused(false);
+      status('Running again.');
+      break;
+    case 'stim':
+      if (ev.model === inputSource) TL.stim(ev.what, ev.t);
+      break;
+    case 'trace': TL.trace(ev.model, ev.t0, ev.dt, ev.y); break;
+    case 'blink': if (card) blink(card); TL.blink(ev.model, ev.t); break;
+    case 'plot':
+      $('plotWrap').className = 'plot-wrap has-img';
+      $('plotWrap').innerHTML = `<img alt="learning plot" src="data:image/png;base64,${ev.png}">`;
+      $('plotHint').textContent = `Updated after trial ${ev.trials_done} of ${ev.n_trials}.`;
+      $('savePlot').disabled = false;
+      break;
+    case 'done': if (card) { card.state.textContent = 'finished · results saved'; card.ended = true; } break;
+    case 'stopped': if (card) { card.state.textContent = 'stopped'; card.ended = true; moveInputSource(ev.model); } break;
+    case 'error':
+      if (card) { card.state.textContent = 'error: ' + ev.message; card.state.style.color = 'var(--err)';
+                  card.ended = true; moveInputSource(ev.model); }
+      status((ev.model ? `Model ${ev.model}: ` : '') + ev.message, true);
+      break;
+    case 'finished':
+      setRunning(false);
+      TL.draw();
+      if (Object.values(ev.state).every(s => s === 'done')) status(`Finished. Results in ${ev.outdir}`);
+      else if (Object.values(ev.state).some(s => s === 'stopped')) status('Stopped.' + (ev.outdir ? ` Results in ${ev.outdir}` : ''));
+      break;
+  }
+}
+
+// ---------------------------------------------------------------- timeline
+// The whole experiment on one axis (CS, US and each model's eyelid, filling in as the run
+// goes), with a movable highlighted window that is shown zoomed in below it.
+// Times are model time (s).
+const TL = (() => {
+  const GUT = 64, PADR = 10;
+  const COL = { cs: '#2a9d8f', us: '#b3261e', A: '#c8553d', B: '#2f6db5', grid: '#e6e2da',
+                text: '#6b7078', sel: 'rgba(47,109,181,0.16)', selEdge: '#2f6db5', blink: '#f2b705' };
+  const MIN_W = 0.5, MAX_W = 30, GRAB = 7, MIN_SEL_PX = 10;
+  let models = [], now = 0, duration = 0, nTrials = 0, follow = true, width = 3, sel = [-3, 0];
+  let cs = [], us = [], trials = [], blinks = {}, tr = {}, bins = {};
+  let drag = null, dirty = true;
+  const ov = $('overview'), de = $('detail'), wIn = $('tlWidth');
+
+  function reset(labels, isi) {
+    models = labels; now = 0; duration = 0; nTrials = 0; follow = true;
+    width = Math.max(2, isi + 1.2); sel = [-width, 0];
+    cs = []; us = []; trials = []; blinks = {}; tr = {};
+    labels.forEach(l => { blinks[l] = []; tr[l] = { t: [], y: [] }; });
+    setWidthInput(); setFollow(true); size();
+  }
+  function setRun(d, n) { if (d && d !== duration) { duration = d; nTrials = n || nTrials; rebin(); } }
+  function bump(t) { if (t > now) { now = t; dirty = true; } }
+  function trial(t, n, type) { trials.push({ t, n, type }); bump(t); }
+  function stim(what, t) {
+    const list = what.startsWith('cs') ? cs : us;
+    if (what.endsWith('_on')) list.push([t, null]);
+    else if (list.length && list[list.length - 1][1] == null) list[list.length - 1][1] = t;
+    bump(t);
+  }
+  function blink(label, t) { if (blinks[label]) { blinks[label].push(t); dirty = true; } }
+  function trace(label, t0, dt, y) {
+    const b = tr[label]; if (!b) return;
+    for (let i = 0; i < y.length; i++) { const t = t0 + i * dt; b.t.push(t); b.y.push(y[i]); addBin(label, t, y[i]); }
+    bump(t0 + (y.length - 1) * dt);
+  }
+
+  // ------------------------------------------------ per-pixel min/max of each eyelid trace
+  // The overview has far more samples than pixels, so it draws one min-max bar per pixel.
+  function plotW(c) { return (c.width / (window.devicePixelRatio || 1)) - GUT - PADR; }
+  function rebin() {
+    const n = Math.max(1, Math.floor(plotW(ov)));
+    bins = { n, dt: (duration || 1) / n };
+    for (const l of models) {
+      bins[l] = { lo: new Float32Array(n).fill(NaN), hi: new Float32Array(n).fill(NaN) };
+      const b = tr[l]; for (let i = 0; i < b.t.length; i++) addBin(l, b.t[i], b.y[i]);
+    }
+    dirty = true;
+  }
+  function addBin(l, t, v) {
+    const B = bins[l]; if (!B) return;
+    const k = Math.floor(t / bins.dt); if (k < 0 || k >= bins.n) return;
+    if (!(B.lo[k] <= v)) B.lo[k] = v;
+    if (!(B.hi[k] >= v)) B.hi[k] = v;
+  }
+
+  // ------------------------------------------------ layout
+  function layout(top, stimH, modelH, gap, bottom) {
+    const rs = [{ kind: 'cs', h: stimH }, { kind: 'us', h: stimH },
+                ...models.map(l => ({ kind: 'model', label: l, h: modelH }))];
+    let y = top; rs.forEach(r => { r.y = y; y += r.h + gap; });
+    return { rows: rs, h: y - gap + bottom, top };
+  }
+  const OVL = () => layout(14, 11, 26, 5, 18);
+  const DEL = () => layout(20, 16, 64, 8, 24);
+  function size() {
+    const dpr = window.devicePixelRatio || 1;
+    for (const [c, L] of [[ov, OVL()], [de, DEL()]]) {
+      const w = c.clientWidth || c.parentElement.clientWidth;
+      c.width = Math.round(w * dpr); c.height = Math.round(L.h * dpr); c.style.height = L.h + 'px';
+    }
+    rebin();
+  }
+
+  // ------------------------------------------------ drawing
+  function xmap(c, t1, t2) {
+    const W = c.width / (window.devicePixelRatio || 1);
+    return { W, x: t => GUT + (t - t1) / (t2 - t1) * (W - GUT - PADR), t: x => t1 + (x - GUT) / (W - GUT - PADR) * (t2 - t1) };
+  }
+  function ovRange() { return [0, Math.max(duration, now, 1)]; }
+  function lowerBound(a, v) { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; } return lo; }
+  function rowName(r, detail) {
+    if (r.kind === 'cs') return 'CS tone';
+    if (r.kind === 'us') return 'US puff';
+    return detail ? `Model ${r.label}` : `Eyelid ${r.label}`;
+  }
+
+  function drawFrame(ctx, L, M, detail) {
+    const plotR = M.W - PADR;
+    for (const r of L.rows) {
+      ctx.fillStyle = COL.text; ctx.font = (detail ? '12px' : '11px') + ' system-ui, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(rowName(r, detail), 4, r.y + Math.min(r.h, 14) - 2);
+      ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(GUT, r.y + r.h + 0.5); ctx.lineTo(plotR, r.y + r.h + 0.5); ctx.stroke();
+    }
+    return plotR;
+  }
+  function clipRow(ctx, r, plotR) { ctx.save(); ctx.beginPath(); ctx.rect(GUT, r.y - 8, plotR - GUT, r.h + 10); ctx.clip(); }
+  function drawStim(ctx, r, M, t1, t2, plotR) {
+    ctx.fillStyle = COL[r.kind];
+    for (const [a, b] of (r.kind === 'cs' ? cs : us)) {
+      const e = b == null ? now : b; if (e < t1 || a > t2) continue;
+      const xa = Math.max(GUT, M.x(a)), xb = Math.min(plotR, M.x(e));
+      ctx.fillRect(xa, r.y + 1, Math.max(1, xb - xa), r.h - 2);
+    }
+  }
+  function drawBlinks(ctx, r, M, t1, t2, detail) {
+    ctx.fillStyle = COL.blink; ctx.strokeStyle = '#8a6a00'; ctx.lineWidth = 1;
+    for (const t of blinks[r.label] || []) {
+      if (t < t1 || t > t2) continue;
+      const px = M.x(t); ctx.beginPath();
+      if (detail) ctx.arc(px, r.y + 6, 5, 0, 2 * Math.PI); else ctx.rect(px - 1, r.y, 2, 5);
+      ctx.fill(); if (detail) ctx.stroke();
+    }
+  }
+
+  function niceStep(span, target, steps) { return steps.find(s => s >= span / target) || steps[steps.length - 1]; }
+  function mmss(t) { const m = Math.floor(t / 60), s = Math.round(t - 60 * m); return `${m}:${String(s).padStart(2, '0')}`; }
+
+  function drawOverview() {
+    const L = OVL(), dpr = window.devicePixelRatio || 1, ctx = ov.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, ov.width, ov.height);
+    const [t1, t2] = ovRange(), M = xmap(ov, t1, t2);
+    const bottom = L.rows[L.rows.length - 1].y + L.rows[L.rows.length - 1].h;
+    // not yet simulated
+    if (now < t2) { ctx.fillStyle = '#f6f4f0'; ctx.fillRect(M.x(now), L.top - 2, M.x(t2) - M.x(now), bottom - L.top + 2); }
+    // highlighted window, drawn at least MIN_SEL_PX wide so it can be grabbed
+    let xa = M.x(sel[0]), xb = M.x(sel[1]);
+    if (xb - xa < MIN_SEL_PX) { const c = (xa + xb) / 2; xa = c - MIN_SEL_PX / 2; xb = c + MIN_SEL_PX / 2; }
+    ctx.fillStyle = COL.sel; ctx.fillRect(xa, 2, xb - xa, bottom + 2);
+    const plotR = drawFrame(ctx, L, M, false);
+    // trial numbers, thinned out so the labels don't collide
+    const pxPer = nTrials ? (plotR - GUT) / nTrials : 999;
+    const every = [1, 2, 5, 10, 20, 25, 50, 100].find(k => k * pxPer >= 26) || 100;
+    ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left';
+    for (const x_ of trials) {
+      if (pxPer >= 12) { ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(M.x(x_.t), L.top - 4); ctx.lineTo(M.x(x_.t), bottom); ctx.stroke(); }
+      if (x_.n === 1 || x_.n % every === 0) { ctx.fillStyle = COL.text; ctx.fillText(String(x_.n), M.x(x_.t) + 2, L.top - 5); }
+    }
+    for (const r of L.rows) {
+      clipRow(ctx, r, plotR);
+      if (r.kind !== 'model') drawStim(ctx, r, M, t1, t2, plotR);
+      else {
+        const B = bins[r.label], y = v => r.y + r.h - Math.min(1, Math.max(0, v)) * r.h;
+        if (B) {
+          ctx.fillStyle = COL[r.label] || '#555';
+          for (let k = 0; k < bins.n; k++) {
+            if (Number.isNaN(B.hi[k])) continue;
+            const top = y(B.hi[k]), bot = y(B.lo[k]);
+            ctx.fillRect(GUT + k, top, 1, Math.max(1.2, bot - top));
+          }
+        }
+        drawBlinks(ctx, r, M, t1, t2, false);
+      }
+      ctx.restore();
+    }
+    ctx.strokeStyle = COL.selEdge; ctx.lineWidth = 2; ctx.strokeRect(xa, 2, xb - xa, bottom + 2);
+    if (xb - xa >= 3 * GRAB) { ctx.fillStyle = COL.selEdge; for (const x of [xa, xb]) ctx.fillRect(x - 2, bottom / 2 - 8, 4, 16); }
+    // "now" marker and time axis
+    if (now > 0 && now < t2) { ctx.strokeStyle = '#999'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(M.x(now), 2); ctx.lineTo(M.x(now), bottom); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.fillStyle = COL.text; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center';
+    const step = niceStep(t2 - t1, 10, [10, 15, 30, 60, 120, 300, 600]);
+    for (let t = 0; t <= t2 + 1e-6; t += step) ctx.fillText(mmss(t), Math.min(Math.max(M.x(t), GUT + 8), plotR - 10), L.h - 4);
+  }
+
+  function drawDetail() {
+    const L = DEL(), dpr = window.devicePixelRatio || 1, ctx = de.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, de.width, de.height);
+    const [t1, t2] = sel, M = xmap(de, t1, t2);
+    ctx.fillStyle = '#faf9f6'; ctx.fillRect(GUT, 4, M.W - GUT - PADR, L.h - 26);
+    const plotR = drawFrame(ctx, L, M, true), bottom = L.rows[L.rows.length - 1].y + L.rows[L.rows.length - 1].h;
+    ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left';
+    for (const x_ of trials) {
+      if (x_.t < t1 || x_.t > t2) continue;
+      const x = M.x(x_.t);
+      ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(x, L.top - 4); ctx.lineTo(x, bottom); ctx.stroke();
+      ctx.fillStyle = COL.text; ctx.fillText(`trial ${x_.n} · ${x_.type}`, x + 3, L.top - 5);
+    }
+    for (const r of L.rows) {
+      clipRow(ctx, r, plotR);
+      if (r.kind !== 'model') drawStim(ctx, r, M, t1, t2, plotR);
+      else {
+        const b = tr[r.label], y = v => r.y + r.h - Math.min(1, Math.max(0, v)) * r.h;
+        ctx.setLineDash([4, 4]); ctx.strokeStyle = '#b9b4aa'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(GUT, y(cfg.blink_threshold)); ctx.lineTo(plotR, y(cfg.blink_threshold)); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = COL.text; ctx.fillText('blink threshold', plotR - 78, y(cfg.blink_threshold) - 3);
+        ctx.strokeStyle = COL[r.label] || '#555'; ctx.lineWidth = 2; ctx.beginPath();
+        let started = false;
+        for (let i = Math.max(0, lowerBound(b.t, t1) - 1); i < b.t.length && b.t[i] <= t2 + 0.02; i++) {
+          const px = M.x(b.t[i]), py = y(b.y[i]);
+          if (!started) { ctx.moveTo(px, py); started = true; } else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        drawBlinks(ctx, r, M, t1, t2, true);
+      }
+      ctx.restore();
+    }
+    // axis: ms from the CS onset in view if there is one, else seconds of model time
+    const onsets = cs.map(iv => iv[0]).filter(t => t <= t2 && t >= t1 - 3);
+    const ref = onsets.length ? onsets[onsets.length - 1] : null;
+    const step = niceStep(t2 - t1, 8, [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10]);
+    ctx.fillStyle = COL.text; ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center';
+    const base = ref ?? 0;
+    for (let k = Math.ceil((t1 - base) / step); base + k * step <= t2; k++) {
+      const t = base + k * step, x = M.x(t);
+      ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(x, L.h - 22); ctx.lineTo(x, L.h - 18); ctx.stroke();
+      ctx.fillText(ref != null ? `${Math.round(k * step * 1000)}` : mmss(t), x, L.h - 8);
+    }
+    ctx.textAlign = 'left';
+    const cap = ref != null ? ['ms from', 'CS onset'] : ['run time', '(m:ss)'];
+    ctx.fillText(cap[0], 4, L.h - 13); ctx.fillText(cap[1], 4, L.h - 2);
+  }
+
+  function clampSel() {
+    const w = sel[1] - sel[0];
+    if (follow) { sel = [now - width, now]; return; }
+    if (sel[1] > now) sel = [now - w, now];
+    if (sel[0] < 0 && now >= w) sel = [0, w];
+  }
+  function draw() { if (!models.length) return; clampSel(); drawOverview(); drawDetail(); dirty = false; }
+  function loop() { if (dirty) draw(); requestAnimationFrame(loop); }
+
+  // ------------------------------------------------ interaction
+  function setFollow(f) { follow = f; $('follow').hidden = f; $('liveTag').hidden = !f; dirty = true; }
+  function setWidthInput() { wIn.value = width; $('tlWidthOut').textContent = width.toFixed(1) + ' s'; }
+  function setWidth(w) {
+    w = Math.min(MAX_W, Math.max(MIN_W, w));
+    const c = follow ? now : (sel[0] + sel[1]) / 2;
+    width = w; sel = follow ? [now - w, now] : [c - w / 2, c + w / 2];
+    setWidthInput(); dirty = true;
+  }
+  function pos(e) { const r = ov.getBoundingClientRect(); return e.clientX - r.left; }
+  function hit(x) {
+    const [t1, t2] = ovRange(), M = xmap(ov, t1, t2);
+    let xa = M.x(sel[0]), xb = M.x(sel[1]);
+    const narrow = xb - xa < 3 * GRAB;
+    if (xb - xa < MIN_SEL_PX) { const c = (xa + xb) / 2; xa = c - MIN_SEL_PX / 2; xb = c + MIN_SEL_PX / 2; }
+    if (!narrow && Math.abs(x - xa) < GRAB) return 'l';
+    if (!narrow && Math.abs(x - xb) < GRAB) return 'r';
+    return x > xa - 2 && x < xb + 2 ? 'move' : 'jump';
+  }
+  ov.addEventListener('pointerdown', e => {
+    if (!models.length) return;
+    const [t1, t2] = ovRange(), M = xmap(ov, t1, t2), x = pos(e), t = M.t(x), h = hit(x);
+    drag = h === 'l' || h === 'r' ? { mode: h } : { mode: 'move', off: h === 'move' ? t - sel[0] : (sel[1] - sel[0]) / 2 };
+    setFollow(false); ov.setPointerCapture(e.pointerId); move(e);
+  });
+  function move(e) {
+    const x = pos(e);
+    if (!drag) { const h = hit(x); ov.style.cursor = h === 'l' || h === 'r' ? 'ew-resize' : (h === 'move' ? 'grab' : 'pointer'); return; }
+    const [t1, t2] = ovRange(), M = xmap(ov, t1, t2), t = M.t(x), w = sel[1] - sel[0];
+    if (drag.mode === 'move') { const a = Math.min(Math.max(t - drag.off, 0), Math.max(0, now - w)); sel = [a, a + w]; }
+    else if (drag.mode === 'l') sel = [Math.min(Math.max(t, 0, sel[1] - MAX_W), sel[1] - MIN_W), sel[1]];
+    else sel = [sel[0], Math.max(Math.min(t, now, sel[0] + MAX_W), sel[0] + MIN_W)];
+    width = sel[1] - sel[0]; setWidthInput(); dirty = true;
+  }
+  ov.addEventListener('pointermove', move);
+  ov.addEventListener('pointerup', () => { drag = null; });
+  ov.addEventListener('dblclick', () => setFollow(true));
+  $('follow').onclick = () => setFollow(true);
+  wIn.addEventListener('input', () => setWidth(+wIn.value));
+  window.addEventListener('resize', size);
+  requestAnimationFrame(loop);
+  return { reset, setRun, trial, stim, blink, trace, draw: () => { dirty = true; } };
+})();
+
+init().catch(e => status('Could not reach the server: ' + e.message, true));
+</script>
+</body>
+</html>

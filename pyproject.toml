@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cereb-testing-platform"
+version = "0.2.0"
+description = "Test granule-layer models in a fixed cerebellar circuit on eyeblink conditioning, and compare two models live."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+dependencies = [
+    "nengo>=3.2",
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+cereb-platform = "cereb_platform.__main__:main"
+
+[tool.setuptools]
+packages = ["cereb_platform"]
+
+[tool.setuptools.package-data]
+cereb_platform = ["web/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

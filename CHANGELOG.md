@@ -4,16 +4,12 @@
 
 ### Added
 
-- **Pause / Resume.** A Pause button next to Stop holds the run and Resume carries on
-  from the same moment: the same trial and the same time step, with nothing skipped or
-  repeated. Both models pause together. While a run is paused you can still change the
-  speed, and Stop still ends it. A paused run is held in memory, so closing the server
+- **Pause / Resume.** A paused run is held in memory, so closing the server
   ends it.
 - **Save simulation.** A button at the top right of the Learning box downloads the
   current learning plot as a PNG, drawn at full resolution (150 dpi) rather than the
   on-page preview. The file name gives the input, ISI, models and trial count, for
   example `learning_delay_isi500_lmu_vs_reservoir_single_trial40_20261125-131100.png`.
-  It works during a run, while paused and after the run ends.
 
 ### Changed
 

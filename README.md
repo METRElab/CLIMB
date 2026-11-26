@@ -1,4 +1,4 @@
-# CLIMB: Cerebellar Learning and Interchangeable Models' Benchmark
+# CLIMB: Cerebellar Learning and Interchangeable Models Benchmark
 
 Test granule-layer models inside a fixed reference cerebellar circuit on eyeblink conditioning, and watch two models learn side by side.
 
